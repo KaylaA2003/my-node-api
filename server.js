@@ -114,17 +114,28 @@ app.get("/appointments", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
 // ✅ Add Appointment
 app.post("/appointments", authenticate, async (req, res) => {
     try {
         const { title, date, description } = req.body;
+
+        console.log("📥 Incoming Appointment Request:", req.body); // Debugging Log
+
+        // ✅ Validate correct `YYYY-MM-DD` format for the date
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ error: "Invalid date format. Expected YYYY-MM-DD" });
+        }
+
+        // ✅ Insert into PostgreSQL
         const newAppointment = await pool.query(
             "INSERT INTO appointments (user_id, title, date, description) VALUES ($1, $2, $3, $4) RETURNING *",
             [req.userId, title, date, description]
         );
+
+        console.log("✅ Appointment Added:", newAppointment.rows[0]);
         res.json(newAppointment.rows[0]);
     } catch (err) {
+        console.error("❌ Database Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
