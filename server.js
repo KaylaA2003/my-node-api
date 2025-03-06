@@ -149,9 +149,10 @@ app.post("/daily_tasks", authenticate, async (req, res) => {
         console.log("📥 Incoming Daily Task:", req.body); // Debugging Log
 
         // ✅ Ensure the time is formatted correctly (HH:mm format)
-        if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(time)) {
-            return res.status(400).json({ error: "Invalid time format. Expected HH:mm (24-hour format)" });
-        }
+        if (!/^\d{4}-\d{2}-\d{2} ([01]?\d|2[0-3]):[0-5]\d:00$/.test(time)) {
+    return res.status(400).json({ error: "Invalid time format. Expected YYYY-MM-DD HH:mm:ss" });
+}
+
 
         // ✅ Convert `time` to `DATE` format (YYYY-MM-DD HH:mm:ss)
         const currentDate = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD
