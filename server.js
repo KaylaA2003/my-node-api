@@ -148,10 +148,12 @@ app.post("/daily_tasks", authenticate, async (req, res) => {
 
         console.log("📥 Incoming Daily Task:", req.body); // Debugging Log
 
-        // ✅ Validate correct `YYYY-MM-DD HH:mm:ss` format
-        if (!/^\d{4}-\d{2}-\d{2} ([01]?\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(time)) {
-            return res.status(400).json({ error: "Invalid time format. Expected YYYY-MM-DD HH:mm:ss" });
-        }
+        const dateRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;  // Strict validation
+        if (!dateRegex.test(time)) {
+    console.log("❌ Invalid Time Format Received:", time);  // Debugging
+    return res.status(400).json({ error: "Invalid time format. Expected YYYY-MM-DD HH:mm:ss" });
+}
+
 
         // ✅ Insert into PostgreSQL
         const newTask = await pool.query(
