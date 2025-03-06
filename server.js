@@ -12,36 +12,35 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// ✅ API Health Check
 app.get("/", (req, res) => {
     res.send("🚀 API is running...");
 });
 
-// Register User
+// ✅ Register User
 app.post("/register", async (req, res) => {
     try {
-        console.log("📥 Incoming Register Request:", req.body); // Log request data
+        console.log("📥 Incoming Register Request:", req.body);
 
         const { username, password, name, role } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        console.log("🔑 Hashed Password:", hashedPassword); // Log hashed password
+        console.log("🔑 Hashed Password:", hashedPassword);
 
         const newUser = await pool.query(
             "INSERT INTO users (username, password, name, role) VALUES ($1, $2, $3, $4) RETURNING *",
             [username, hashedPassword, name, role]
         );
 
-        console.log("✅ User Inserted:", newUser.rows[0]); // Log DB response
-
+        console.log("✅ User Inserted:", newUser.rows[0]);
         res.status(201).json({ message: "User registered successfully", user: newUser.rows[0] });
     } catch (err) {
-        console.error("❌ Database Error:", err.message); // Log error details
+        console.error("❌ Database Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-
-// Login User
+// ✅ Login User
 app.post("/login", async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -60,7 +59,7 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// Middleware for Authentication
+// ✅ Middleware for Authentication
 const authenticate = (req, res, next) => {
     const token = req.headers["authorization"];
     if (!token) return res.status(401).json({ error: "Access denied" });
@@ -72,7 +71,7 @@ const authenticate = (req, res, next) => {
     });
 };
 
-// Get Medications
+// ✅ Get Medications
 app.get("/medications", authenticate, async (req, res) => {
     try {
         const medications = await pool.query("SELECT * FROM medications WHERE user_id = $1", [req.userId]);
@@ -82,7 +81,7 @@ app.get("/medications", authenticate, async (req, res) => {
     }
 });
 
-// Add Medication
+// ✅ Add Medication
 app.post("/medications", authenticate, async (req, res) => {
     try {
         const { name, dosage, time, duration, isTaken } = req.body;
@@ -96,7 +95,7 @@ app.post("/medications", authenticate, async (req, res) => {
     }
 });
 
-// Delete Medication
+// ✅ Delete Medication
 app.delete("/medications/:id", authenticate, async (req, res) => {
     try {
         await pool.query("DELETE FROM medications WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
@@ -106,7 +105,7 @@ app.delete("/medications/:id", authenticate, async (req, res) => {
     }
 });
 
-// Get Appointments
+// ✅ Get Appointments
 app.get("/appointments", authenticate, async (req, res) => {
     try {
         const appointments = await pool.query("SELECT * FROM appointments WHERE user_id = $1", [req.userId]);
@@ -116,7 +115,7 @@ app.get("/appointments", authenticate, async (req, res) => {
     }
 });
 
-// Add Appointment
+// ✅ Add Appointment
 app.post("/appointments", authenticate, async (req, res) => {
     try {
         const { title, date, description } = req.body;
@@ -130,7 +129,67 @@ app.post("/appointments", authenticate, async (req, res) => {
     }
 });
 
-// Start Server
+// ✅ DAILY TASKS CRUD OPERATIONS
+
+// ✅ Get Daily Tasks
+app.get("/daily_tasks", authenticate, async (req, res) => {
+    try {
+        const tasks = await pool.query("SELECT * FROM daily_tasks WHERE user_id = $1", [req.userId]);
+        res.json(tasks.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ✅ Add Daily Task
+app.post("/daily_tasks", authenticate, async (req, res) => {
+    try {
+        const { name, location, time, frequency } = req.body;
+        const newTask = await pool.query(
+            "INSERT INTO daily_tasks (user_id, name, location, time, frequency) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            [req.userId, name, location, time, frequency]
+        );
+        res.json(newTask.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ✅ Update Daily Task
+app.put("/daily_tasks/:id", authenticate, async (req, res) => {
+    try {
+        const { name, location, time, frequency } = req.body;
+        const updatedTask = await pool.query(
+            "UPDATE daily_tasks SET name = $1, location = $2, time = $3, frequency = $4 WHERE id = $5 AND user_id = $6 RETURNING *",
+            [name, location, time, frequency, req.params.id, req.userId]
+        );
+
+        if (updatedTask.rows.length === 0) {
+            return res.status(404).json({ error: "Task not found or unauthorized" });
+        }
+
+        res.json(updatedTask.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ✅ Delete Daily Task
+app.delete("/daily_tasks/:id", authenticate, async (req, res) => {
+    try {
+        const deletedTask = await pool.query("DELETE FROM daily_tasks WHERE id = $1 AND user_id = $2 RETURNING *", [req.params.id, req.userId]);
+
+        if (deletedTask.rows.length === 0) {
+            return res.status(404).json({ error: "Task not found or unauthorized" });
+        }
+
+        res.json({ message: "Task deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ✅ Start Server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
