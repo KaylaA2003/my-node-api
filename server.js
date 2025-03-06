@@ -12,6 +12,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
+app.get("/", (req, res) => {
+    res.send("🚀 API is running...");
+});
+
 // Register User
 app.post("/register", async (req, res) => {
     try {
