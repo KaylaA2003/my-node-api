@@ -145,15 +145,33 @@ app.get("/daily_tasks", authenticate, async (req, res) => {
 app.post("/daily_tasks", authenticate, async (req, res) => {
     try {
         const { name, location, time, frequency } = req.body;
+
+        console.log("📥 Incoming Daily Task:", req.body); // Debugging Log
+
+        // ✅ Ensure the time is formatted correctly (HH:mm format)
+        if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(time)) {
+            return res.status(400).json({ error: "Invalid time format. Expected HH:mm (24-hour format)" });
+        }
+
+        // ✅ Convert `time` to `DATE` format (YYYY-MM-DD HH:mm:ss)
+        const currentDate = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD
+        const formattedDateTime = `${currentDate} ${time}:00`; // Combine date with time
+
+        console.log("✅ Formatted DateTime:", formattedDateTime); // Debugging Log
+
         const newTask = await pool.query(
             "INSERT INTO daily_tasks (user_id, name, location, time, frequency) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            [req.userId, name, location, time, frequency]
+            [req.userId, name, location, formattedDateTime, frequency]
         );
+
+        console.log("✅ Task Added:", newTask.rows[0]); // Debugging Log
         res.json(newTask.rows[0]);
     } catch (err) {
+        console.error("❌ Database Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // ✅ Update Daily Task
 app.put("/daily_tasks/:id", authenticate, async (req, res) => {
