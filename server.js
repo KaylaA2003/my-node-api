@@ -19,19 +19,27 @@ app.get("/", (req, res) => {
 // Register User
 app.post("/register", async (req, res) => {
     try {
+        console.log("📥 Incoming Register Request:", req.body); // Log request data
+
         const { username, password, name, role } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
+
+        console.log("🔑 Hashed Password:", hashedPassword); // Log hashed password
 
         const newUser = await pool.query(
             "INSERT INTO users (username, password, name, role) VALUES ($1, $2, $3, $4) RETURNING *",
             [username, hashedPassword, name, role]
         );
 
+        console.log("✅ User Inserted:", newUser.rows[0]); // Log DB response
+
         res.status(201).json({ message: "User registered successfully", user: newUser.rows[0] });
     } catch (err) {
+        console.error("❌ Database Error:", err.message); // Log error details
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // Login User
 app.post("/login", async (req, res) => {
