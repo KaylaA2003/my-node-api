@@ -12,12 +12,12 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// ✅ API Health Check
+// API Health Check
 app.get("/", (req, res) => {
     res.send("🚀 API is running...");
 });
 
-// ✅ Register User
+// Register User
 app.post("/register", async (req, res) => {
     try {
         console.log("📥 Incoming Register Request:", req.body);
@@ -40,7 +40,7 @@ app.post("/register", async (req, res) => {
     }
 });
 
-// ✅ Login User
+// Login User
 app.post("/login", async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -59,7 +59,7 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// ✅ Middleware for Authentication
+// Middleware for Authentication
 const authenticate = (req, res, next) => {
     const token = req.headers["authorization"];
     if (!token) return res.status(401).json({ error: "Access denied" });
@@ -71,7 +71,7 @@ const authenticate = (req, res, next) => {
     });
 };
 
-// ✅ Get Medications
+// Get Medications
 app.get("/medications", authenticate, async (req, res) => {
     try {
         const medications = await pool.query("SELECT * FROM medications WHERE user_id = $1", [req.userId]);
@@ -81,7 +81,7 @@ app.get("/medications", authenticate, async (req, res) => {
     }
 });
 
-// ✅ Add Medication
+// Add Medication
 app.post("/medications", authenticate, async (req, res) => {
     try {
         const { name, dosage, time, duration, isTaken } = req.body;
@@ -95,7 +95,7 @@ app.post("/medications", authenticate, async (req, res) => {
     }
 });
 
-// ✅ Delete Medication
+// Delete Medication
 app.delete("/medications/:id", authenticate, async (req, res) => {
     try {
         await pool.query("DELETE FROM medications WHERE id = $1 AND user_id = $2", [req.params.id, req.userId]);
@@ -105,7 +105,7 @@ app.delete("/medications/:id", authenticate, async (req, res) => {
     }
 });
 
-// ✅ Get Appointments
+// Get Appointments
 app.get("/appointments", authenticate, async (req, res) => {
     try {
         const appointments = await pool.query("SELECT * FROM appointments WHERE user_id = $1", [req.userId]);
@@ -114,19 +114,19 @@ app.get("/appointments", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-// ✅ Add Appointment
+// Add Appointment
 app.post("/appointments", authenticate, async (req, res) => {
     try {
         const { title, date, description } = req.body;
 
         console.log("📥 Incoming Appointment Request:", req.body); // Debugging Log
 
-        // ✅ Validate correct `YYYY-MM-DD` format for the date
+        // Validate correct `YYYY-MM-DD` format for the date
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
             return res.status(400).json({ error: "Invalid date format. Expected YYYY-MM-DD" });
         }
 
-        // ✅ Insert into PostgreSQL
+        // Insert into PostgreSQL
         const newAppointment = await pool.query(
             "INSERT INTO appointments (user_id, title, date, description) VALUES ($1, $2, $3, $4) RETURNING *",
             [req.userId, title, date, description]
@@ -140,9 +140,9 @@ app.post("/appointments", authenticate, async (req, res) => {
     }
 });
 
-// ✅ DAILY TASKS CRUD OPERATIONS
+// DAILY TASKS CRUD OPERATIONS
 
-// ✅ Get Daily Tasks
+// Get Daily Tasks
 app.get("/daily_tasks", authenticate, async (req, res) => {
     try {
         const tasks = await pool.query("SELECT * FROM daily_tasks WHERE user_id = $1", [req.userId]);
@@ -152,7 +152,7 @@ app.get("/daily_tasks", authenticate, async (req, res) => {
     }
 });
 
-// ✅ Add Daily Task
+// Add Daily Task
 app.post("/daily_tasks", authenticate, async (req, res) => {
     try {
         const { name, location, time, frequency } = req.body;
@@ -166,7 +166,7 @@ app.post("/daily_tasks", authenticate, async (req, res) => {
 }
 
 
-        // ✅ Insert into PostgreSQL
+        // Insert into PostgreSQL
         const newTask = await pool.query(
             "INSERT INTO daily_tasks (user_id, name, location, time, frequency) VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [req.userId, name, location, time, frequency]
@@ -181,7 +181,7 @@ app.post("/daily_tasks", authenticate, async (req, res) => {
 });
 
 
-// ✅ Update Daily Task
+// Update Daily Task
 app.put("/daily_tasks/:id", authenticate, async (req, res) => {
     try {
         const { name, location, time, frequency } = req.body;
@@ -200,7 +200,7 @@ app.put("/daily_tasks/:id", authenticate, async (req, res) => {
     }
 });
 
-// ✅ Delete Daily Task
+// Delete Daily Task
 app.delete("/daily_tasks/:id", authenticate, async (req, res) => {
     try {
         const deletedTask = await pool.query("DELETE FROM daily_tasks WHERE id = $1 AND user_id = $2 RETURNING *", [req.params.id, req.userId]);
@@ -215,7 +215,7 @@ app.delete("/daily_tasks/:id", authenticate, async (req, res) => {
     }
 });
 
-// ✅ Start Server
+// Start Server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
