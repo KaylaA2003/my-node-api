@@ -256,28 +256,38 @@ app.get("/get_caregiver", authenticate, async (req, res) => {
 app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
     try {
         const { caregiverId } = req.query;
+        if (!caregiverId) {
+            return res.status(400).json({ error: "Caregiver ID is required" });
+        }
 
-        const patients = await pool.query(
-            "SELECT id, name FROM users WHERE caregiver_id IS NULL AND role = 'patient'"
+        const pendingPatients = await pool.query(
+            "SELECT * FROM users WHERE assigned_caregiver IS NULL AND role = 'patient'"
         );
 
-        res.json(patients.rows);
+        res.json(pendingPatients.rows);
     } catch (err) {
+        console.error("❌ Error fetching pending patients:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
-app.post("/caregiver/accept-patient", authenticate, async (req, res) => {
+app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) => {
     try {
-        const { patientId } = req.query;
-        const caregiverId = req.userId;
+        const caregiverId = req.userId; // Extract caregiver ID from JWT
+        const { patientId } = req.params;
 
-        await pool.query(
-            "UPDATE users SET caregiver_id = $1 WHERE id = $2",
+        // Assign patient to caregiver
+        const result = await pool.query(
+            "UPDATE users SET assigned_caregiver = $1 WHERE id = $2 RETURNING *",
             [caregiverId, patientId]
         );
 
-        res.json({ message: "Patient assigned to caregiver" });
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Patient not found or already assigned" });
+        }
+
+        res.json({ message: "Patient assigned successfully" });
     } catch (err) {
+        console.error("❌ Error accepting patient:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
