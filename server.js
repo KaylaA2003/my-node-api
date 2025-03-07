@@ -253,3 +253,32 @@ app.get("/get_caregiver", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
+    try {
+        const { caregiverId } = req.query;
+
+        const patients = await pool.query(
+            "SELECT id, name FROM users WHERE caregiver_id IS NULL AND role = 'patient'"
+        );
+
+        res.json(patients.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.post("/caregiver/accept-patient", authenticate, async (req, res) => {
+    try {
+        const { patientId } = req.query;
+        const caregiverId = req.userId;
+
+        await pool.query(
+            "UPDATE users SET caregiver_id = $1 WHERE id = $2",
+            [caregiverId, patientId]
+        );
+
+        res.json({ message: "Patient assigned to caregiver" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
