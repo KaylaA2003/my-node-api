@@ -260,9 +260,15 @@ app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
             return res.status(400).json({ error: "Caregiver ID is required" });
         }
 
+        console.log(`📥 Fetching pending patients for caregiver ${caregiverId}`);
+
+        // Fetch only patients who requested this caregiver
         const pendingPatients = await pool.query(
-            "SELECT * FROM users WHERE counterpart_id IS NULL AND role = 'patient'"
+            "SELECT * FROM users WHERE requested_caregiver_id = $1 AND role = 'patient'",
+            [caregiverId]
         );
+
+        console.log(`✅ Found ${pendingPatients.rows.length} pending requests`);
 
         res.json(pendingPatients.rows);
     } catch (err) {
@@ -270,14 +276,28 @@ app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
 app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) => {
     try {
-        const caregiverId = req.userId; // Extract caregiver ID from JWT
+        const caregiverId = req.userId; // Caregiver accepting the request
         const { patientId } = req.params;
+
+        console.log(`📥 Caregiver ${caregiverId} accepting patient ${patientId}`);
+
+        // Ensure patient actually requested this caregiver
+        const checkRequest = await pool.query(
+            "SELECT * FROM users WHERE id = $1 AND requested_caregiver_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (checkRequest.rows.length === 0) {
+            console.log("❌ Patient did not request this caregiver");
+            return res.status(400).json({ error: "Patient did not request this caregiver" });
+        }
 
         // Assign patient to caregiver
         const result = await pool.query(
-            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *",
+            "UPDATE users SET counterpart_id = $1, requested_caregiver_id = NULL WHERE id = $2 RETURNING *",
             [caregiverId, patientId]
         );
 
@@ -285,18 +305,19 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
             return res.status(404).json({ error: "Patient not found or already assigned" });
         }
 
+        console.log(`✅ Patient ${patientId} assigned to caregiver ${caregiverId}`);
         res.json({ message: "Patient assigned successfully" });
     } catch (err) {
         console.error("❌ Error accepting patient:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     try {
         const { userId, caregiverUsername } = req.body; 
 
-        console.log(`📥 Incoming Request to Assign Caregiver`);
-        console.log(`🔎 userId: ${userId}, caregiverUsername: ${caregiverUsername}`);
+        console.log(`📥 Patient ${userId} requesting caregiver ${caregiverUsername}`);
 
         // Convert userId to integer
         const parsedUserId = parseInt(userId, 10);
@@ -317,9 +338,9 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
 
         const caregiverId = caregiver.rows[0].id;
 
-        // Update patient record with caregiver ID
+        // Update patient record with requested caregiver ID (NOT assigning yet)
         const updatePatient = await pool.query(
-            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *", 
+            "UPDATE users SET requested_caregiver_id = $1 WHERE id = $2 RETURNING *", 
             [caregiverId, parsedUserId]
         );
 
@@ -328,8 +349,8 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
             return res.status(404).json({ error: "Patient not found" });
         }
 
-        console.log(`✅ Caregiver assigned successfully!`);
-        res.json({ message: "Caregiver assigned successfully" });
+        console.log(`✅ Caregiver request stored successfully!`);
+        res.json({ message: "Caregiver request sent successfully" });
     } catch (err) {
         console.error("❌ Server Error:", err.message);
         res.status(500).json({ error: err.message });
