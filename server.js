@@ -313,7 +313,7 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
 
         // Update patient record with caregiver ID
         const updatePatient = await pool.query(
-            "UPDATE users SET caregiver_id = $1 WHERE id = $2 RETURNING *", 
+            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *", 
             [caregiverId, userId]
         );
 
