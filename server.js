@@ -293,10 +293,16 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
 });
 app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     try {
-        const { userId, caregiverUsername } = req.query; // Use req.query instead of req.body
+        const { userId, caregiverUsername } = req.body; // ✅ Corrected from req.query
 
         console.log(`📥 Incoming Request to Assign Caregiver`);
         console.log(`🔎 userId: ${userId}, caregiverUsername: ${caregiverUsername}`);
+
+        // Convert userId to integer
+        const parsedUserId = parseInt(userId, 10);
+        if (isNaN(parsedUserId)) {
+            return res.status(400).json({ error: "Invalid user ID" });
+        }
 
         // Find caregiver by username
         const caregiver = await pool.query(
@@ -313,8 +319,8 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
 
         // Update patient record with caregiver ID
         const updatePatient = await pool.query(
-            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *", 
-            [caregiverId, userId]
+            "UPDATE users SET assigned_caregiver = $1 WHERE id = $2 RETURNING *", 
+            [caregiverId, parsedUserId]
         );
 
         if (updatePatient.rowCount === 0) {
@@ -329,6 +335,3 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
-
-
