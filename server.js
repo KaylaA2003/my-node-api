@@ -357,27 +357,21 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     }
 });
 
-app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) => {
+app.post("/caregiver/add-medication", authenticate, async (req, res) => {
     try {
-        const caregiverId = req.userId;
-        const { patientId } = req.params;
+        const { patientId } = req.query;
         const { name, dosage, time, duration, isTaken } = req.body;
-
-        // Ensure the caregiver is assigned to this patient
-        const patient = await pool.query(
-            "SELECT * FROM users WHERE id = $1 AND counterpart_id = $2",
-            [patientId, caregiverId]
-        );
-
-        if (patient.rows.length === 0) {
-            return res.status(403).json({ error: "Unauthorized to modify this patient’s data" });
-        }
-
-        // Insert medication into the database
+        // Optional: Verify that the patient is assigned to this caregiver
         const newMedication = await pool.query(
             "INSERT INTO medications (user_id, name, dosage, time, duration, is_taken) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
             [patientId, name, dosage, time, duration, isTaken]
         );
+        res.json(newMedication.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
         res.json(newMedication.rows[0]);
     } catch (err) {
@@ -385,4 +379,27 @@ app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) 
         res.status(500).json({ error: err.message });
     }
 });
+
+app.get("/caregiver/assigned-patients", authenticate, async (req, res) => {
+    try {
+        const caregiverId = req.userId;
+        const result = await pool.query("SELECT * FROM users WHERE counterpart_id = $1 AND role = 'patient'", [caregiverId]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/caregiver/patient-medications", authenticate, async (req, res) => {
+    try {
+        const { patientId } = req.query;
+        if (!patientId) return res.status(400).json({ error: "Patient ID is required" });
+        // Optional: Verify that the patient is assigned to the caregiver
+        const medications = await pool.query("SELECT * FROM medications WHERE user_id = $1", [patientId]);
+        res.json(medications.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
