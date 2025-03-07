@@ -293,24 +293,42 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
 });
 app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     try {
-        const { userId, caregiverUsername } = req.body;
+        const { userId, caregiverUsername } = req.query; // Use req.query instead of req.body
 
-        // Find caregiver's ID from username
-        const caregiver = await pool.query("SELECT id FROM users WHERE username = $1 AND role = 'caregiver'", [caregiverUsername]);
+        console.log(`📥 Incoming Request to Assign Caregiver`);
+        console.log(`🔎 userId: ${userId}, caregiverUsername: ${caregiverUsername}`);
+
+        // Find caregiver by username
+        const caregiver = await pool.query(
+            "SELECT id FROM users WHERE username = $1 AND role = 'caregiver'", 
+            [caregiverUsername]
+        );
 
         if (caregiver.rows.length === 0) {
+            console.log("❌ Caregiver not found");
             return res.status(404).json({ error: "Caregiver not found" });
         }
 
         const caregiverId = caregiver.rows[0].id;
 
         // Update patient record with caregiver ID
-        await pool.query("UPDATE users SET caregiver_id = $1 WHERE id = $2", [caregiverId, userId]);
+        const updatePatient = await pool.query(
+            "UPDATE users SET caregiver_id = $1 WHERE id = $2 RETURNING *", 
+            [caregiverId, userId]
+        );
 
+        if (updatePatient.rowCount === 0) {
+            console.log("❌ Patient not found");
+            return res.status(404).json({ error: "Patient not found" });
+        }
+
+        console.log(`✅ Caregiver assigned successfully!`);
         res.json({ message: "Caregiver assigned successfully" });
     } catch (err) {
+        console.error("❌ Server Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
