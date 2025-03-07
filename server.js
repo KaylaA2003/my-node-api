@@ -505,5 +505,39 @@ app.get("/caregiver/patient-medications", authenticate, async (req, res) => {
     }
 });
 
+app.get("/caregiver/patient-daily-tasks", authenticate, async (req, res) => {
+    try {
+        const { patientId } = req.query;
+        const caregiverId = req.userId; // Caregiver making the request
 
+        if (!patientId) {
+            return res.status(400).json({ error: "Patient ID is required" });
+        }
+
+        console.log(`📡 Fetching daily tasks for patient ${patientId} assigned to caregiver ${caregiverId}`);
+
+        // Verify the caregiver is assigned to the patient
+        const patientCheck = await pool.query(
+            "SELECT id FROM users WHERE id = $1 AND counterpart_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (patientCheck.rows.length === 0) {
+            console.log("❌ Patient is not assigned to this caregiver");
+            return res.status(403).json({ error: "Unauthorized access to patient data" });
+        }
+
+        // Fetch daily tasks for the assigned patient
+        const tasks = await pool.query(
+            "SELECT * FROM daily_tasks WHERE user_id = $1",
+            [patientId]
+        );
+
+        console.log(`✅ Found ${tasks.rows.length} tasks for patient ${patientId}`);
+        res.json(tasks.rows);
+    } catch (err) {
+        console.error("❌ Error fetching patient daily tasks:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
