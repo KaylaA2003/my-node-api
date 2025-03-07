@@ -293,7 +293,7 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
 });
 app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     try {
-        const { userId, caregiverUsername } = req.body; // ✅ Corrected from req.query
+        const { userId, caregiverUsername } = req.body; 
 
         console.log(`📥 Incoming Request to Assign Caregiver`);
         console.log(`🔎 userId: ${userId}, caregiverUsername: ${caregiverUsername}`);
