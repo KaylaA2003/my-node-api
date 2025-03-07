@@ -356,3 +356,33 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) => {
+    try {
+        const caregiverId = req.userId;
+        const { patientId } = req.params;
+        const { name, dosage, time, duration, isTaken } = req.body;
+
+        // Ensure the caregiver is assigned to this patient
+        const patient = await pool.query(
+            "SELECT * FROM users WHERE id = $1 AND counterpart_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (patient.rows.length === 0) {
+            return res.status(403).json({ error: "Unauthorized to modify this patient’s data" });
+        }
+
+        // Insert medication into the database
+        const newMedication = await pool.query(
+            "INSERT INTO medications (user_id, name, dosage, time, duration, is_taken) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+            [patientId, name, dosage, time, duration, isTaken]
+        );
+
+        res.json(newMedication.rows[0]);
+    } catch (err) {
+        console.error("❌ Error adding medication:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
