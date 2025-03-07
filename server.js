@@ -315,19 +315,19 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
 
 app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     try {
-        const { userId, caregiverUsername } = req.body; 
+        const { userId, caregiverUsername } = req.body;
 
         console.log(`📥 Patient ${userId} requesting caregiver ${caregiverUsername}`);
 
-        // Convert userId to integer
+        // Validate user ID
         const parsedUserId = parseInt(userId, 10);
         if (isNaN(parsedUserId)) {
             return res.status(400).json({ error: "Invalid user ID" });
         }
 
-        // Find caregiver by username
+        // Find caregiver ID
         const caregiver = await pool.query(
-            "SELECT id FROM users WHERE username = $1 AND role = 'caregiver'", 
+            "SELECT id FROM users WHERE username = $1 AND role = 'caregiver'",
             [caregiverUsername]
         );
 
@@ -338,9 +338,9 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
 
         const caregiverId = caregiver.rows[0].id;
 
-        // Update patient record with requested caregiver ID (NOT assigning yet)
+        // Assign the caregiver to the patient
         const updatePatient = await pool.query(
-            "UPDATE users SET requested_caregiver_id = $1 WHERE id = $2 RETURNING *", 
+            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *",
             [caregiverId, parsedUserId]
         );
 
@@ -349,13 +349,14 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
             return res.status(404).json({ error: "Patient not found" });
         }
 
-        console.log(`✅ Caregiver request stored successfully!`);
-        res.json({ message: "Caregiver request sent successfully" });
+        console.log(`✅ Caregiver ${caregiverId} assigned to patient ${parsedUserId}`);
+        res.json({ message: "Caregiver assigned successfully" });
     } catch (err) {
         console.error("❌ Server Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // Add Medication for Patient
 app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) => {
@@ -450,24 +451,59 @@ app.post("/caregiver/add-appointment/:patientId", authenticate, async (req, res)
 
 app.get("/caregiver/assigned-patients", authenticate, async (req, res) => {
     try {
-        const caregiverId = req.userId;
-        const result = await pool.query("SELECT * FROM users WHERE counterpart_id = $1 AND role = 'patient'", [caregiverId]);
+        const caregiverId = req.userId; // Get caregiver ID from token
+        console.log(`📡 Fetching assigned patients for caregiver ${caregiverId}`);
+
+        const result = await pool.query(
+            "SELECT id, name FROM users WHERE counterpart_id = $1 AND role = 'patient'",
+            [caregiverId]
+        );
+
+        console.log(`✅ Found ${result.rows.length} assigned patients`);
+
         res.json(result.rows);
     } catch (err) {
+        console.error("❌ Error fetching assigned patients:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+
 app.get("/caregiver/patient-medications", authenticate, async (req, res) => {
     try {
         const { patientId } = req.query;
-        if (!patientId) return res.status(400).json({ error: "Patient ID is required" });
-        // Optional: Verify that the patient is assigned to the caregiver
-        const medications = await pool.query("SELECT * FROM medications WHERE user_id = $1", [patientId]);
+        const caregiverId = req.userId; // Caregiver making the request
+
+        if (!patientId) {
+            return res.status(400).json({ error: "Patient ID is required" });
+        }
+
+        console.log(`📡 Fetching medications for patient ${patientId} assigned to caregiver ${caregiverId}`);
+
+        // Verify if the caregiver is assigned to this patient
+        const patientCheck = await pool.query(
+            "SELECT id FROM users WHERE id = $1 AND counterpart_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (patientCheck.rows.length === 0) {
+            console.log("❌ Patient is not assigned to this caregiver");
+            return res.status(403).json({ error: "Unauthorized access to patient data" });
+        }
+
+        // Fetch medications for the assigned patient
+        const medications = await pool.query(
+            "SELECT * FROM medications WHERE user_id = $1",
+            [patientId]
+        );
+
+        console.log(`✅ Found ${medications.rows.length} medications for patient ${patientId}`);
         res.json(medications.rows);
     } catch (err) {
+        console.error("❌ Error fetching patient medications:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
