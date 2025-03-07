@@ -291,4 +291,26 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
         res.status(500).json({ error: err.message });
     }
 });
+app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
+    try {
+        const { userId, caregiverUsername } = req.body;
+
+        // Find caregiver's ID from username
+        const caregiver = await pool.query("SELECT id FROM users WHERE username = $1 AND role = 'caregiver'", [caregiverUsername]);
+
+        if (caregiver.rows.length === 0) {
+            return res.status(404).json({ error: "Caregiver not found" });
+        }
+
+        const caregiverId = caregiver.rows[0].id;
+
+        // Update patient record with caregiver ID
+        await pool.query("UPDATE users SET caregiver_id = $1 WHERE id = $2", [caregiverId, userId]);
+
+        res.json({ message: "Caregiver assigned successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
