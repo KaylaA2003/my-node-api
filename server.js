@@ -357,21 +357,28 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
     }
 });
 
-app.post("/caregiver/add-medication", authenticate, async (req, res) => {
+// Add Medication for Patient
+app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) => {
     try {
-        const { patientId } = req.query;
+        const caregiverId = req.userId;
+        const { patientId } = req.params;
         const { name, dosage, time, duration, isTaken } = req.body;
-        // Optional: Verify that the patient is assigned to this caregiver
+
+        // Ensure the caregiver is assigned to this patient
+        const patient = await pool.query(
+            "SELECT * FROM users WHERE id = $1 AND counterpart_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (patient.rows.length === 0) {
+            return res.status(403).json({ error: "Unauthorized to modify this patient’s data" });
+        }
+
+        // Insert medication into the database
         const newMedication = await pool.query(
             "INSERT INTO medications (user_id, name, dosage, time, duration, is_taken) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
             [patientId, name, dosage, time, duration, isTaken]
         );
-        res.json(newMedication.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 
         res.json(newMedication.rows[0]);
     } catch (err) {
@@ -379,6 +386,67 @@ app.post("/caregiver/add-medication", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// Add Daily Task for Patient
+app.post("/caregiver/add-daily-task/:patientId", authenticate, async (req, res) => {
+    try {
+        const caregiverId = req.userId;
+        const { patientId } = req.params;
+        const { name, location, time, frequency } = req.body;
+
+        // Ensure the caregiver is assigned to this patient
+        const patient = await pool.query(
+            "SELECT * FROM users WHERE id = $1 AND counterpart_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (patient.rows.length === 0) {
+            return res.status(403).json({ error: "Unauthorized to modify this patient’s data" });
+        }
+
+        // Insert daily task into the database
+        const newTask = await pool.query(
+            "INSERT INTO daily_tasks (user_id, name, location, time, frequency) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            [patientId, name, location, time, frequency]
+        );
+
+        res.json(newTask.rows[0]);
+    } catch (err) {
+        console.error("❌ Error adding daily task:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Add Appointment for Patient
+app.post("/caregiver/add-appointment/:patientId", authenticate, async (req, res) => {
+    try {
+        const caregiverId = req.userId;
+        const { patientId } = req.params;
+        const { title, date, description } = req.body;
+
+        // Ensure the caregiver is assigned to this patient
+        const patient = await pool.query(
+            "SELECT * FROM users WHERE id = $1 AND counterpart_id = $2",
+            [patientId, caregiverId]
+        );
+
+        if (patient.rows.length === 0) {
+            return res.status(403).json({ error: "Unauthorized to modify this patient’s data" });
+        }
+
+        // Insert appointment into the database
+        const newAppointment = await pool.query(
+            "INSERT INTO appointments (user_id, title, date, description) VALUES ($1, $2, $3, $4) RETURNING *",
+            [patientId, title, date, description]
+        );
+
+        res.json(newAppointment.rows[0]);
+    } catch (err) {
+        console.error("❌ Error adding appointment:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 app.get("/caregiver/assigned-patients", authenticate, async (req, res) => {
     try {
