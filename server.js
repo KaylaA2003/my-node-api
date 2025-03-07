@@ -261,7 +261,7 @@ app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
         }
 
         const pendingPatients = await pool.query(
-            "SELECT * FROM users WHERE assigned_caregiver IS NULL AND role = 'patient'"
+            "SELECT * FROM users WHERE counterpart_id IS NULL AND role = 'patient'"
         );
 
         res.json(pendingPatients.rows);
@@ -277,7 +277,7 @@ app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) 
 
         // Assign patient to caregiver
         const result = await pool.query(
-            "UPDATE users SET assigned_caregiver = $1 WHERE id = $2 RETURNING *",
+            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *",
             [caregiverId, patientId]
         );
 
@@ -319,7 +319,7 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
 
         // Update patient record with caregiver ID
         const updatePatient = await pool.query(
-            "UPDATE users SET assigned_caregiver = $1 WHERE id = $2 RETURNING *", 
+            "UPDATE users SET counterpart_id = $1 WHERE id = $2 RETURNING *", 
             [caregiverId, parsedUserId]
         );
 
