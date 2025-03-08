@@ -390,11 +390,15 @@ app.post("/patients/assign-caregiver", authenticate, async (req, res) => {
 
 
 // Add Medication for Patient
+// Add Medication for Patient
 app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) => {
     try {
         const caregiverId = req.userId;
         const { patientId } = req.params;
         const { name, dosage, time, duration, isTaken } = req.body;
+
+        console.log(`📡 Request received: Caregiver ${caregiverId} adding medication for Patient ${patientId}`);
+        console.log("📥 Request Body:", req.body);
 
         // Ensure the caregiver is assigned to this patient
         const patient = await pool.query(
@@ -403,6 +407,7 @@ app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) 
         );
 
         if (patient.rows.length === 0) {
+            console.log("❌ Unauthorized caregiver access to patient medication");
             return res.status(403).json({ error: "Unauthorized to modify this patient’s data" });
         }
 
@@ -412,12 +417,14 @@ app.post("/caregiver/add-medication/:patientId", authenticate, async (req, res) 
             [patientId, name, dosage, time, duration, isTaken]
         );
 
+        console.log("✅ Medication added:", newMedication.rows[0]);
         res.json(newMedication.rows[0]);
     } catch (err) {
         console.error("❌ Error adding medication:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // Add Daily Task for Patient
 app.post("/caregiver/add-daily-task/:patientId", authenticate, async (req, res) => {
