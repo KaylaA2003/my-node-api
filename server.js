@@ -579,3 +579,21 @@ app.get("/caregiver/patient-daily-tasks", authenticate, async (req, res) => {
     }
 });
 
+app.get("/get_caregiver", authenticate, async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT u2.name AS caregiver_name FROM users u1 JOIN users u2 ON u1.counterpart_id = u2.id WHERE u1.id = $1",
+            [req.userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "No caregiver assigned" });
+        }
+
+        res.json({ caregiverName: result.rows[0].caregiver_name });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
