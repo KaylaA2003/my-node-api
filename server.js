@@ -286,16 +286,16 @@ app.get("/get_caregiver", authenticate, async (req, res) => {
 });
 app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
     try {
-        const { caregiverId } = req.query;
-        if (!caregiverId) {
-            return res.status(400).json({ error: "Caregiver ID is required" });
+        const caregiverId = parseInt(req.userId, 10); // Get caregiver ID from token
+        if (isNaN(caregiverId)) {
+            return res.status(400).json({ error: "Invalid caregiver ID" });
         }
 
         console.log(`📥 Fetching pending patients for caregiver ${caregiverId}`);
 
         // Fetch only patients who requested this caregiver
         const pendingPatients = await pool.query(
-            "SELECT * FROM users WHERE requested_caregiver_id = $1 AND role = 'patient'",
+            "SELECT id, name FROM users WHERE requested_caregiver_id = $1 AND role = 'patient'",
             [caregiverId]
         );
 
@@ -307,6 +307,7 @@ app.get("/caregiver/pending-patients", authenticate, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 app.post("/caregiver/accept-patient/:patientId", authenticate, async (req, res) => {
     try {
