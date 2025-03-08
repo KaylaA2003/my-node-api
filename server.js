@@ -105,15 +105,46 @@ app.delete("/medications/:id", authenticate, async (req, res) => {
     }
 });
 
-// Get Appointments
+// Get Appointments for Patient or Caregiver's Assigned Patient
 app.get("/appointments", authenticate, async (req, res) => {
     try {
-        const appointments = await pool.query("SELECT * FROM appointments WHERE user_id = $1", [req.userId]);
+        const { patientId } = req.query;
+        const userId = req.userId;
+
+        let queryUserId = userId; // Default: fetch for the logged-in user
+
+        // If caregiver is fetching for a patient, check if they are authorized
+        if (patientId) {
+            console.log(`📡 Fetching appointments for patient ID: ${patientId} by caregiver ${userId}`);
+
+            // Verify if the caregiver is assigned to this patient
+            const patientCheck = await pool.query(
+                "SELECT id FROM users WHERE id = $1 AND counterpart_id = $2",
+                [patientId, userId]
+            );
+
+            if (patientCheck.rows.length === 0) {
+                console.log("❌ Unauthorized caregiver access to patient appointments");
+                return res.status(403).json({ error: "Unauthorized access to patient appointments" });
+            }
+
+            queryUserId = patientId; // Fetch appointments for the verified patient
+        }
+
+        // Fetch appointments
+        const appointments = await pool.query(
+            "SELECT * FROM appointments WHERE user_id = $1",
+            [queryUserId]
+        );
+
+        console.log(`✅ Found ${appointments.rows.length} appointments for user ${queryUserId}`);
         res.json(appointments.rows);
     } catch (err) {
+        console.error("❌ Error fetching appointments:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 // Add Appointment
 app.post("/appointments", authenticate, async (req, res) => {
     try {
